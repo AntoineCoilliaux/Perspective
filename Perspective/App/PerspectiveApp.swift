@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct PerspectiveApp: App {
+    @State private var profileViewModel = ProfileViewModel()
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
@@ -24,9 +26,10 @@ struct PerspectiveApp: App {
     }()
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-        .modelContainer(sharedModelContainer)
-    }
+           WindowGroup {
+               ContentView()
+                   .environment(profileViewModel)
+           }
+           .modelContainer(for: Item.self)
+       }
 }
