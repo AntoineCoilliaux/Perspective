@@ -71,7 +71,7 @@ extension Item {
     
     // MARK: - Symbolic thresholds
     
-    static let symbolicThresholds: [Double] = [50, 20, 10, 5, 2, 1, 0.5, 0.1]
+    static let symbolicThresholds: [Double] = [1000, 500, 250, 100, 50, 40, 30, 20, 10, 5, 2, 1, 0.5, 0.1]
     
     func nextThreshold(in currency: Currency) -> (value: Double, daysUntil: Int)? {
         let current = costPerDay(in: currency)

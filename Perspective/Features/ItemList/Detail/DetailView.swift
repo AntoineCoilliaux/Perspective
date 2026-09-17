@@ -5,9 +5,9 @@
 //  Created by Antoine Coilliaux on 25/08/2026.
 //
 
-import Charts
 import SwiftData
 import SwiftUI
+import Charts
 
 struct ItemDetailView: View {
     
@@ -21,36 +21,34 @@ struct ItemDetailView: View {
     
     @State private var showingEdit = false
     
-    private var currencyCode: String {
-        profileViewModel.profile.currency.rawValue
-    }
+    private var currency: Currency { profileViewModel.profile.currency }
+    private var currencyCode: String { currency.rawValue }
     
     // MARK: - Body
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 header
                 bestValueBadge
+                
                 switch item.calculationMode {
                 case .perDay:
                     costPerDayCard
-                    nextThresholdCard(currency: profileViewModel.profile.currency)
+                    nextThresholdBanner
                 case .perUse:
                     costPerUseCard
                 }
                 
-                if let hourlyRate = profileViewModel.profile.computedHourlyRate {
-                    workTimeBadge(hourlyRate: hourlyRate)
-                }
+                workTimeBanner
                 
                 if item.calculationMode == .perUse {
                     costPerDaySecondaryCard
-                        .padding(.top, 8)
                 }
             }
-            .padding()
+            .padding(20)
         }
+        .background(Theme.background)
         .navigationTitle(item.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -63,23 +61,26 @@ struct ItemDetailView: View {
             }
         }
         .sheet(isPresented: $showingEdit) {
-            AddItemView(itemToEdit: item, profileCurrency: profileViewModel.profile.currency)
+            AddItemView(itemToEdit: item, profileCurrency: currency)
         }
         .onAppear {
-            NotificationManager.scheduleThresholdNotification(for: item, currency: profileViewModel.profile.currency)
+            NotificationManager.scheduleThresholdNotification(for: item, currency: currency)
         }
     }
     
     // MARK: - Header
     
     private var header: some View {
-        VStack(spacing: 2) {
-            Text(item.convertedPrice(to: profileViewModel.profile.currency), format: .currency(code: currencyCode))
-                .font(.title2.weight(.semibold))
+        VStack(spacing: 4) {
+            Text(item.convertedPrice(to: currency), format: .currency(code: currencyCode))
+                .font(Theme.serif(38))
+                .foregroundStyle(Theme.text1)
             Text("purchased \(item.purchaseDate.formatted(date: .abbreviated, time: .omitted))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
         }
+        .padding(.top, 4)
+        .padding(.bottom, 6)
     }
     
     // MARK: - Cost per day
@@ -87,33 +88,27 @@ struct ItemDetailView: View {
     private var costPerDayCard: some View {
         VStack(spacing: 10) {
             Text("cost per day")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
             
-            Text(item.costPerDay(in: profileViewModel.profile.currency), format: .currency(code: currencyCode))
-                .font(.system(size: 30, weight: .semibold))
-            comparisonBadge(for: item.costPerDay(in: profileViewModel.profile.currency))
+            Text(item.costPerDay(in: currency), format: .currency(code: currencyCode))
+                .font(Theme.serif(32))
+                .foregroundStyle(Theme.text1)
+            
+            comparisonBanner(for: item.costPerDay(in: currency))
             costPerDayChart
         }
-        .padding()
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+        .themeCard()
     }
     
     private var costPerDaySecondaryCard: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Text("also costs")
-                Text(item.costPerDay(in: profileViewModel.profile.currency), format: .currency(code: currencyCode))
-                    .fontWeight(.semibold)
-                Text("per day since purchase")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            
+        VStack(alignment: .leading, spacing: 4) {
+            Text("also costs \(item.costPerDay(in: currency).formatted(.currency(code: currencyCode))) / day since purchase")
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
             costPerDayChart
         }
-        .padding()
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+        .themeCard()
     }
     
     private struct CostPoint: Identifiable {
@@ -126,7 +121,7 @@ struct ItemDetailView: View {
         let totalDays = item.daysOwned
         let stepCount = min(totalDays, 20)
         guard stepCount > 0 else { return [] }
-        let convertedPrice = item.convertedPrice(to: profileViewModel.profile.currency)
+        let convertedPrice = item.convertedPrice(to: currency)
         
         return stride(from: 1, through: totalDays, by: max(1, totalDays / stepCount)).map { day in
             CostPoint(day: day, cost: convertedPrice / Double(day))
@@ -139,27 +134,29 @@ struct ItemDetailView: View {
                 x: .value("Day", point.day),
                 y: .value("Cost", point.cost)
             )
-            .foregroundStyle(.tint)
+            .foregroundStyle(Theme.slate)
             .interpolationMethod(.catmullRom)
         }
         .frame(height: 140)
         .chartXScale(domain: (costPerDayHistory.first?.day ?? 1)...(costPerDayHistory.last?.day ?? 1))
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                AxisGridLine()
+                AxisGridLine().foregroundStyle(Theme.border)
                 AxisValueLabel {
                     if let day = value.as(Int.self), day > 0 {
                         Text("day \(day)")
+                            .foregroundStyle(Theme.text3)
                     }
                 }
             }
         }
         .chartYAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                AxisGridLine()
+                AxisGridLine().foregroundStyle(Theme.border)
                 AxisValueLabel {
                     if let cost = value.as(Double.self) {
                         Text(cost, format: .currency(code: currencyCode))
+                            .foregroundStyle(Theme.text3)
                     }
                 }
             }
@@ -167,19 +164,15 @@ struct ItemDetailView: View {
         .padding(.top, 4)
     }
     
-    private func nextThresholdCard(currency: Currency) -> some View {
+    private var nextThresholdBanner: some View {
         Group {
             if let next = item.nextThreshold(in: currency) {
-                Label {
-                    Text("\(next.daysUntil) day\(next.daysUntil > 1 ? "s" : "") until under \(next.value.formatted(.currency(code: currency.rawValue)))/day")
-                } icon: {
-                    Image(systemName: "hourglass")
-                }
-                .font(.caption)
-                .foregroundStyle(.purple)
-                .padding(12)
-                .frame(maxWidth: .infinity)
-                .background(.purple.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                ThemeBanner(
+                    "\(next.daysUntil) day\(next.daysUntil > 1 ? "s" : "") until under \(next.value.formatted(.currency(code: currencyCode)))/day",
+                    systemImage: "hourglass",
+                    tint: Theme.slate,
+                    background: Theme.slateBg
+                )
             }
         }
     }
@@ -189,114 +182,105 @@ struct ItemDetailView: View {
     private var costPerUseCard: some View {
         VStack(spacing: 10) {
             Text("cost per use")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
             
-            if let cost = item.costPerUse(in: profileViewModel.profile.currency) {
+            if let cost = item.costPerUse(in: currency) {
                 Text(cost, format: .currency(code: currencyCode))
-                    .font(.system(size: 30, weight: .semibold))
-                comparisonBadge(for: cost)
+                    .font(Theme.serif(32))
+                    .foregroundStyle(Theme.text1)
+                comparisonBanner(for: cost)
             } else {
                 Text("—")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(Theme.serif(32))
+                    .foregroundStyle(Theme.text3)
             }
             
             if let average = item.averageUsesPerWeek {
-                Text("~\(average.formatted(.number.precision(.fractionLength(1)))) uses/week on average")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                Text("≈ \(average.formatted(.number.precision(.fractionLength(1)))) uses / week on average")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.text2)
+                    .padding(.bottom, 4)
             }
             
-            Text("Uses so far")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
+            Text("uses so far")
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
             
-            HStack(spacing: 24) {
-                Button {
-                    withAnimation {
-                        if let last = item.usages.max(by: { $0.date < $1.date }) {
-                            item.usages.removeAll { $0.id == last.id }
-                            modelContext.delete(last)
-                        }
+            HStack(spacing: 18) {
+                stepButton(systemImage: "minus") {
+                    if let last = item.usages.max(by: { $0.date < $1.date }) {
+                        item.usages.removeAll { $0.id == last.id }
+                        modelContext.delete(last)
                     }
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.title)
                 }
                 .disabled(item.usages.isEmpty)
+                .opacity(item.usages.isEmpty ? 0.35 : 1)
                 
                 Text("\(item.usages.count)")
-                    .font(.title2.weight(.semibold))
-                    .frame(minWidth: 40)
+                    .font(Theme.serif(26))
+                    .foregroundStyle(Theme.text1)
+                    .frame(minWidth: 52)
                     .contentTransition(.numericText())
                 
-                Button {
-                    withAnimation {
-                        viewModel.logUsage(for: item)
-                    }
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title)
+                stepButton(systemImage: "plus") {
+                    viewModel.logUsage(for: item)
                 }
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.tint)
+            .padding(.top, 2)
         }
-        .padding()
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+        .themeCard()
     }
     
-    // MARK: - Badges
+    private func stepButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation { action() }
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Theme.slate)
+                .frame(width: 44, height: 44)
+                .background(
+                    Circle().stroke(Theme.border, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    // MARK: - Banners
     
     private var bestValueBadge: some View {
         Group {
-            if item.calculationMode == .perDay, item.isBestValue(among: allItems, currency: profileViewModel.profile.currency) {
-                Label("your best value item right now", systemImage: "star.fill")
-                    .font(.caption)
-                    .foregroundStyle(.yellow)
-                    .padding(12)
-                    .frame(maxWidth: .infinity)
-                    .background(.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            if item.calculationMode == .perDay,
+               item.isBestValue(among: allItems, currency: currency) {
+                ThemeBanner(
+                    "your best value item right now",
+                    systemImage: "star.fill",
+                    tint: Theme.gold,
+                    background: Theme.goldBg
+                )
             }
         }
     }
     
-    private func workTimeBadge(hourlyRate: Double) -> some View {
-        let cost = item.calculationMode == .perDay ? item.costPerDay(in: profileViewModel.profile.currency) : (item.costPerUse(in: profileViewModel.profile.currency) ?? item.convertedPrice(to: profileViewModel.profile.currency))
-        let hours = cost / hourlyRate
-        
-        return Label {
-            Text(workTimeText(hours: hours))
-        } icon: {
-            Image(systemName: "clock")
-        }
-        .font(.caption)
-        .foregroundStyle(.tint)
-        .padding(12)
-        .frame(maxWidth: .infinity)
-        .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
-    }
-    
-    private func workTimeText(hours: Double) -> String {
-        if hours < 1 {
-            let minutes = Int(hours * 60)
-            return "equals \(minutes) min of your work"
-        } else {
-            return "equals \(hours.formatted(.number.precision(.fractionLength(1))))h of your work"
-        }
-    }
-    
-    private func comparisonBadge(for value: Double) -> some View {
+    private var workTimeBanner: some View {
         Group {
-            if let comparison = costComparison(for: value, in: profileViewModel.profile.currency) {
-                Label(comparison.text, systemImage: "")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                    .padding(12)
-                    .frame(maxWidth: .infinity)
-                    .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+            if let hourlyRate = profileViewModel.profile.computedHourlyRate {
+                let cost = item.calculationMode == .perDay
+                    ? item.costPerDay(in: currency)
+                    : (item.costPerUse(in: currency) ?? item.convertedPrice(to: currency))
+                
+                if let text = WorkTime.longText(cost: cost, hourlyRate: hourlyRate) {
+                    ThemeBanner(text, systemImage: "clock", tint: Theme.gold, background: Theme.goldBg)
+                }
+            }
+        }
+    }
+    
+    private func comparisonBanner(for value: Double) -> some View {
+        Group {
+            if let comparison = costComparison(for: value, in: currency) {
+                ThemeBanner(comparison.text, tint: Theme.text2, background: Theme.cardAlt)
             }
         }
     }

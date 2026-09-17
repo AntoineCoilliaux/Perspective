@@ -14,9 +14,8 @@ struct SummaryView: View {
     @Environment(ProfileViewModel.self) private var profileViewModel
     @State private var viewModel = SummaryViewModel()
     
-    private var currencyCode: String {
-        profileViewModel.profile.currency.rawValue
-    }
+    private var currency: Currency { profileViewModel.profile.currency }
+    private var currencyCode: String { currency.rawValue }
     
     // MARK: - Body
     
@@ -31,217 +30,228 @@ struct SummaryView: View {
                     )
                 } else {
                     ScrollView {
-                        VStack(spacing: 16) {
-                            cumulativeInvestmentCard(viewModel: viewModel)
-                            costPerDayEvolutionCard(viewModel: viewModel)
-                            metricsRow(viewModel: viewModel)
-                            highlightsCard(viewModel: viewModel)
+                        VStack(spacing: 14) {
+                            heroCard
+                            cumulativeInvestmentCard
+                            costPerDayEvolutionCard
+                            highlightsCard
+                            metricsRow
                         }
-                        .padding()
+                        .padding(20)
                     }
                 }
             }
+            .background(Theme.background)
             .navigationTitle("Summary")
         }
     }
     
-    // MARK: - Spending by month
+    // MARK: - Hero
     
-    private func cumulativeInvestmentCard(viewModel: SummaryViewModel) -> some View {
+    private var heroCard: some View {
+        VStack(spacing: 4) {
+            if let rate = profileViewModel.profile.computedHourlyRate {
+                let hours = viewModel.totalWorkHoursInvested(items: items, currency: currency, hourlyRate: rate)
+                Text("\(hours.formatted(.number.precision(.fractionLength(0)))) h")
+                    .font(Theme.serif(40))
+                    .foregroundStyle(Theme.gold)
+                Text("of work invested in your items")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.text2)
+            } else {
+                Text(viewModel.totalInvested(items: items, currency: currency), format: .currency(code: currencyCode))
+                    .font(Theme.serif(40))
+                    .foregroundStyle(Theme.gold)
+                Text("invested in your items")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.text2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .themeCard()
+    }
+    
+    // MARK: - Total invested
+    
+    private var cumulativeInvestmentCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("total invested")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
             
-            let points = viewModel.cumulativeInvestment(items: items, currency: profileViewModel.profile.currency)
+            let points = viewModel.cumulativeInvestment(items: items, currency: currency)
             
             if points.isEmpty {
-                Text("Not enough data yet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(height: 140)
+                emptyChartPlaceholder
             } else {
                 Chart(points) { point in
                     LineMark(
                         x: .value("Date", point.date),
                         y: .value("Total", point.value)
                     )
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Theme.slate)
                     .interpolationMethod(.stepEnd)
                 }
                 .frame(height: 140)
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 3)) { value in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.month(.abbreviated).year())
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let cost = value.as(Double.self) {
-                                Text(cost, format: .currency(code: currencyCode))
-                            }
-                        }
-                    }
-                }
+                .chartXAxis { dateAxis }
+                .chartYAxis { currencyAxis }
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+        .themeCard()
     }
     
     // MARK: - Cost/day trend
     
-    private func costPerDayEvolutionCard(viewModel: SummaryViewModel) -> some View {
+    private var costPerDayEvolutionCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("cost/day trend")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text("cost / day trend")
+                .font(.footnote)
+                .foregroundStyle(Theme.text2)
             
-            let points = viewModel.costPerDayEvolution(items: items, currency: profileViewModel.profile.currency)
+            let points = viewModel.costPerDayEvolution(items: items, currency: currency)
             
             if points.isEmpty {
-                Text("Not enough data yet")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(height: 140)
+                emptyChartPlaceholder
             } else {
                 Chart(points) { point in
                     LineMark(
                         x: .value("Date", point.date),
                         y: .value("Cost", point.value)
                     )
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Theme.teal)
                     .interpolationMethod(.catmullRom)
                 }
                 .frame(height: 140)
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 3)) { value in
-                        AxisGridLine()
-                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                        AxisGridLine()
-                        AxisValueLabel {
-                            if let cost = value.as(Double.self) {
-                                Text(cost, format: .currency(code: currencyCode))
-                            }
-                        }
-                    }
+                .chartXAxis { dateAxis }
+                .chartYAxis { currencyAxis }
+            }
+        }
+        .themeCard()
+    }
+    
+    private var emptyChartPlaceholder: some View {
+        Text("Not enough data yet")
+            .font(.footnote)
+            .foregroundStyle(Theme.text3)
+            .frame(maxWidth: .infinity)
+            .frame(height: 140)
+    }
+    
+    private var dateAxis: some AxisContent {
+        AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+            AxisGridLine().foregroundStyle(Theme.border)
+            AxisValueLabel(format: .dateTime.month(.abbreviated).year())
+                .foregroundStyle(Theme.text3)
+        }
+    }
+    
+    private var currencyAxis: some AxisContent {
+        AxisMarks(values: .automatic(desiredCount: 4)) { value in
+            AxisGridLine().foregroundStyle(Theme.border)
+            AxisValueLabel {
+                if let cost = value.as(Double.self) {
+                    Text(cost, format: .currency(code: currencyCode))
+                        .foregroundStyle(Theme.text3)
                 }
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
     }
     
     // MARK: - Rankings
     
-    private func highlightsCard(viewModel: SummaryViewModel) -> some View {
+    private var highlightsCard: some View {
         Group {
-            if let highlights = viewModel.mostAndLeastCostEffective(items: items, currency: profileViewModel.profile.currency) {
-                VStack(spacing: 12) {
+            if let highlights = viewModel.mostAndLeastCostEffective(items: items, currency: currency) {
+                let count = viewModel.dailyItemCount(items: items)
+                
+                VStack(alignment: .leading, spacing: 0) {
                     Text("your per day items, ranked")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.text2)
+                        .padding(.bottom, 10)
                     
-                    highlightRow(
-                        icon: "arrow.down.circle.fill",
-                        tint: .green,
-                        label: "best value",
-                        highlight: highlights.best
-                    )
-                    
-                    Divider()
-                    
-                    highlightRow(
-                        icon: "arrow.up.circle.fill",
-                        tint: .red,
-                        label: "least used value",
-                        highlight: highlights.worst
-                    )
+                    highlightRow(rank: 1, label: "best value", highlight: highlights.best)
+                    Divider().overlay(Theme.border)
+                    highlightRow(rank: count, label: "least used value", highlight: highlights.worst)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+                .themeCard()
             }
         }
+    }
+    
+    private func highlightRow(rank: Int, label: String, highlight: SummaryViewModel.ItemHighlight) -> some View {
+        HStack(spacing: 10) {
+            Text("\(rank)")
+                .font(Theme.serif(13, weight: .regular))
+                .foregroundStyle(Theme.text3)
+                .frame(width: 18, alignment: .leading)
+            
+            Text(highlight.item.name)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Theme.text1)
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(highlight.costPerDay, format: .currency(code: currencyCode))
+                    .font(Theme.serif(17))
+                    .foregroundStyle(Theme.text1)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.text3)
+            }
+        }
+        .padding(.vertical, 12)
     }
     
     // MARK: - Totals
     
-    private func metricsRow(viewModel: SummaryViewModel) -> some View {
+    private var metricsRow: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
                 metricCard(
                     title: "cost/day (daily items)",
-                    value: viewModel.totalCostPerDay(items: items, currency: profileViewModel.profile.currency).formatted(.currency(code: currencyCode)),
-                    tint: .green
+                    value: viewModel.totalCostPerDay(items: items, currency: currency).formatted(.currency(code: currencyCode)),
+                    tint: Theme.teal,
+                    background: Theme.tealBg
                 )
                 
                 metricCard(
                     title: "cost/use (per-use items)",
-                    value: viewModel.totalCostPerUse(items: items, currency: profileViewModel.profile.currency).formatted(.currency(code: currencyCode)),
-                    tint: .orange
+                    value: viewModel.totalCostPerUse(items: items, currency: currency).formatted(.currency(code: currencyCode)),
+                    tint: Theme.rust,
+                    background: Theme.rustBg
                 )
             }
             
             if let hourlyRate = profileViewModel.profile.computedHourlyRate {
-                let totalCost = viewModel.totalCostPerDay(items: items, currency: profileViewModel.profile.currency) + viewModel.totalCostPerUse(items: items, currency: profileViewModel.profile.currency)
-                let hours = totalCost / hourlyRate
-                metricCard(
-                    title: "combined work time",
-                    value: hours < 1
-                        ? "\(Int(hours * 60)) min"
-                        : "\(hours.formatted(.number.precision(.fractionLength(1))))h",
-                    tint: .blue
-                )
+                let totalCost = viewModel.totalCostPerDay(items: items, currency: currency)
+                    + viewModel.totalCostPerUse(items: items, currency: currency)
+                if let text = WorkTime.shortText(cost: totalCost, hourlyRate: hourlyRate) {
+                    metricCard(
+                        title: "combined work time",
+                        value: text,
+                        tint: Theme.slate,
+                        background: Theme.slateBg
+                    )
+                }
             }
         }
     }
     
-    // MARK: - Reusable rows
-    
-    private func metricCard(title: String, value: String, tint: Color) -> some View {
+    private func metricCard(title: String, value: String, tint: Color, background: Color) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.text2)
             Text(value)
-                .font(.title3.weight(.semibold))
+                .font(Theme.serif(22))
                 .foregroundStyle(tint)
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
-    }
-    
-    private func highlightRow(icon: String, tint: Color, label: String, highlight: SummaryViewModel.ItemHighlight) -> some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundStyle(tint)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(highlight.item.name)
-                    .font(.subheadline.weight(.medium))
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer()
-            
-            Text(highlight.costPerDay, format: .currency(code: currencyCode))
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(tint)
-        }
+        .background(background, in: RoundedRectangle(cornerRadius: Theme.bannerRadius))
     }
 }
 

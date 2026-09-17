@@ -31,6 +31,7 @@ struct ContentView: View {
                 }
                 .tag(2)
         }
+        .tint(Theme.gold)
     }
 }
 

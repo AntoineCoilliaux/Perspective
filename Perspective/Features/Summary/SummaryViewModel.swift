@@ -39,6 +39,19 @@ class SummaryViewModel {
             .reduce(0) { $0 + $1 }
     }
     
+    func totalInvested(items: [Item], currency: Currency) -> Double {
+        items.reduce(0) { $0 + $1.convertedPrice(to: currency) }
+    }
+
+    func totalWorkHoursInvested(items: [Item], currency: Currency, hourlyRate: Double) -> Double {
+        guard hourlyRate > 0 else { return 0 }
+        return totalInvested(items: items, currency: currency) / hourlyRate
+    }
+
+    func dailyItemCount(items: [Item]) -> Int {
+        items.filter { $0.calculationMode == .perDay }.count
+    }
+    
     // MARK: - Monthly spending
     
     func cumulativeInvestment(items: [Item], currency: Currency) -> [EvolutionPoint] {
