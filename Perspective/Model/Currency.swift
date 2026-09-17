@@ -10,8 +10,10 @@ enum Currency: String, Codable, CaseIterable, Identifiable {
     case usd = "USD"
     case gbp = "GBP"
     case chf = "CHF"
+    case jpy = "JPY"
     case cad = "CAD"
     case aud = "AUD"
+    case cny = "CNY"
     case sek = "SEK"
     case nzd = "NZD"
     
@@ -23,8 +25,10 @@ enum Currency: String, Codable, CaseIterable, Identifiable {
         case .usd: return "$"
         case .gbp: return "£"
         case .chf: return "CHF"
+        case .jpy: return "¥"
         case .cad: return "CA$"
         case .aud: return "A$"
+        case .cny: return "¥"
         case .sek: return "kr"
         case .nzd: return "NZ$"
         }
@@ -38,10 +42,29 @@ extension Currency {
         case .usd: return 1.08
         case .gbp: return 0.85
         case .chf: return 0.94
+        case .jpy: return 163.0
         case .cad: return 1.47
         case .aud: return 1.63
+        case .cny: return 7.75
         case .sek: return 11.2
         case .nzd: return 1.77
+        }
+    }
+}
+
+extension Currency {
+    var flag: String {
+        switch self {
+        case .eur: return "🇪🇺"
+        case .usd: return "🇺🇸"
+        case .gbp: return "🇬🇧"
+        case .chf: return "🇨🇭"
+        case .jpy: return "🇯🇵"
+        case .cad: return "🇨🇦"
+        case .aud: return "🇦🇺"
+        case .cny: return "🇨🇳"
+        case .sek: return "🇸🇪"
+        case .nzd: return "🇳🇿"
         }
     }
 }

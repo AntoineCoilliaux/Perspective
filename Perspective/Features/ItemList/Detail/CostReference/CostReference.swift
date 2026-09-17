@@ -7,10 +7,18 @@
 
 import Foundation
 
+// MARK: - Types
+
 struct CostReference {
     let name: String
     let price: Double
 }
+
+struct CostComparison {
+    let text: String
+}
+
+// MARK: - Reference data
 
 let costReferences: [CostReference] = [
     CostReference(name: "a pencil ✏️", price: 0.60),
@@ -31,9 +39,7 @@ let costReferences: [CostReference] = [
     CostReference(name: "a smartphone 📱", price: 800.0)
 ]
 
-struct CostComparison {
-    let text: String
-}
+// MARK: - Comparison
 
 func costComparison(for value: Double, in currency: Currency) -> CostComparison? {
     guard value > 0 else { return nil }
@@ -45,7 +51,7 @@ func costComparison(for value: Double, in currency: Currency) -> CostComparison?
         return CostComparison(text: "less than \(nextAbove.name)")
     }
     
-    if let mostExpensive = sorted.last {
+    if let _ = sorted.last {
         return nil
     }
     

@@ -5,8 +5,8 @@
 //  Created by Antoine Coilliaux on 25/08/2026.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
 struct PerspectiveApp: App {
@@ -26,10 +26,13 @@ struct PerspectiveApp: App {
     }()
 
     var body: some Scene {
-           WindowGroup {
-               ContentView()
-                   .environment(profileViewModel)
-           }
+        WindowGroup {
+            ContentView()
+                .environment(profileViewModel)
+                .onAppear {
+                    NotificationManager.requestAuthorization()
+                }
+        }
            .modelContainer(for: Item.self)
        }
 }

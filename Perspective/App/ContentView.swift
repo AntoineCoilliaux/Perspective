@@ -5,8 +5,8 @@
 //  Created by Antoine Coilliaux on 25/08/2026.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 1

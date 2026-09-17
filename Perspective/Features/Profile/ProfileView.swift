@@ -17,20 +17,42 @@ struct ProfileView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("This section is optional. The app works without it — filling it in just unlocks a few extra comparisons.")
+                    Text("This section is optional. Filling it in just unlocks a few extra comparisons.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .listRowBackground(Color.clear)
-//                        .listRowInsets(EdgeInsets())
                 }
                 
-                Section("Currency") {
-                    Picker("Currency", selection: $viewModel.profile.currency) {
+                Section {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 10) {
                         ForEach(Currency.allCases) { currency in
-                            Text("\(currency.rawValue) (\(currency.symbol))")
-                                .tag(currency)
+                            Button {
+                                viewModel.profile.currency = currency
+                            } label: {
+                                VStack(spacing: 6) {
+                                    Text(currency.flag)
+                                        .font(.system(size: 28))
+                                    Text(currency.rawValue)
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(currency == viewModel.profile.currency ? .primary : .secondary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(currency == viewModel.profile.currency ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemFill))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(currency == viewModel.profile.currency ? Color.accentColor : .clear, lineWidth: 1.5)
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("Currency")
                 }
                 
                 Section("Net income") {

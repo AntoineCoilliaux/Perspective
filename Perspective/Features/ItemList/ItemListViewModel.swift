@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import UserNotifications
 
 @Observable
 class ItemListViewModel {
@@ -17,6 +18,7 @@ class ItemListViewModel {
     }
     
     func delete(_ item: Item) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [item.notificationIdentifier])
         modelContext.delete(item)
     }
     
@@ -25,15 +27,15 @@ class ItemListViewModel {
         item.usages.append(usage)
     }
     
-    func displayedCost(for item: Item) -> (value: Double, unit: String) {
+    func displayedCost(for item: Item, currency: Currency) -> (value: Double, unit: String) {
         switch item.calculationMode {
         case .perDay:
-            return (item.costPerDay, "day")
+            return (item.costPerDay(in: currency), "day")
         case .perUse:
-            if let cost = item.costPerUse {
+            if let cost = item.costPerUse(in: currency) {
                 return (cost, "use")
             }
-            return (item.price, "use")
+            return (item.convertedPrice(to: currency), "use")
         }
     }
 }

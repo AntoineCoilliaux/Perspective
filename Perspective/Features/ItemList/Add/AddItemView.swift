@@ -20,18 +20,21 @@ struct AddItemView: View {
     @State private var calculationMode: CalculationMode = .perDay
     @State private var initialUsageCount: Int?
     
+    private let characterLimit: Int = 30
+    
     var itemToEdit: Item?
     
-    init(itemToEdit: Item? = nil) {
+    init(itemToEdit: Item? = nil, profileCurrency: Currency) {
         self.itemToEdit = itemToEdit
         _name = State(initialValue: itemToEdit?.name ?? "")
-        _price = State(initialValue: itemToEdit?.price)
+        _price = State(initialValue: itemToEdit?.convertedPrice(to: profileCurrency))
         _purchaseDate = State(initialValue: itemToEdit?.purchaseDate ?? .now)
         _calculationMode = State(initialValue: itemToEdit?.calculationMode ?? .perDay)
     }
     
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && (price ?? 0) > 0
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        return !trimmed.isEmpty && (price ?? 0) > 0 && trimmed.count <= characterLimit
     }
     
     var body: some View {
@@ -39,9 +42,17 @@ struct AddItemView: View {
             Form {
                 Section {
                     TextField("Name", text: $name)
-                    TextField("Price", value: $price, format: .currency(code: profileViewModel.profile.currency.rawValue))
-                        .keyboardType(.decimalPad)
-                        .focused($isNumberFieldFocused)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(name.count > characterLimit ? .red : .clear, lineWidth: 1)
+                        )
+                    HStack {
+                        Text(profileViewModel.profile.currency.symbol)
+                            .foregroundStyle(.secondary)
+                        TextField("Price", value: $price, format: .number)
+                            .keyboardType(.decimalPad)
+                            .focused($isNumberFieldFocused)
+                    }
                     DatePicker("Purchase date", selection: $purchaseDate, in: ...Date.now, displayedComponents: .date)
                 } header: {
                     Text("General information")
@@ -99,14 +110,20 @@ struct AddItemView: View {
         if let itemToEdit {
             itemToEdit.name = name.trimmingCharacters(in: .whitespaces)
             itemToEdit.price = price ?? 0
+            itemToEdit.currency = profileViewModel.profile.currency
             itemToEdit.purchaseDate = purchaseDate
             itemToEdit.calculationMode = calculationMode
+            
+            if calculationMode == .perDay {
+                NotificationManager.scheduleThresholdNotification(for: itemToEdit, currency: profileViewModel.profile.currency)
+            }
         } else {
             let item = Item(
                 name: name.trimmingCharacters(in: .whitespaces),
                 price: price ?? 0,
                 purchaseDate: purchaseDate,
                 calculationMode: calculationMode,
+                currency: profileViewModel.profile.currency
             )
             modelContext.insert(item)
             
@@ -115,13 +132,17 @@ struct AddItemView: View {
                     item.usages.append(Usage(date: purchaseDate, item: item))
                 }
             }
+            
+            if calculationMode == .perDay {
+                NotificationManager.scheduleThresholdNotification(for: item, currency: profileViewModel.profile.currency)
+            }
         }
         dismiss()
     }
 }
 
 #Preview {
-    AddItemView()
+    AddItemView(profileCurrency: .eur)
         .modelContainer(for: Item.self, inMemory: true)
         .environment(ProfileViewModel())
 }

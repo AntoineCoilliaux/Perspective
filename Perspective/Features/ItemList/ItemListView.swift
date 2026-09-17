@@ -5,15 +5,20 @@
 //  Created by Antoine Coilliaux on 25/08/2026.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ItemListView: View {
+    
+    // MARK: - Properties
+    
     @Environment(ProfileViewModel.self) private var profileViewModel
     @Query(sort: \Item.purchaseDate, order: .reverse) private var items: [Item]
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel: ItemListViewModel?
     @State private var showingAddItem = false
+    
+    // MARK: - Body
     
     var body: some View {
         NavigationStack {
@@ -49,7 +54,7 @@ struct ItemListView: View {
                 }
             }
             .sheet(isPresented: $showingAddItem) {
-                AddItemView()
+                AddItemView(profileCurrency: profileViewModel.profile.currency)
             }
             .onAppear {
                 if viewModel == nil {
@@ -59,9 +64,11 @@ struct ItemListView: View {
         }
     }
     
+    // MARK: - Row
+    
     private func itemRow(_ item: Item) -> some View {
         guard let viewModel else { return AnyView(EmptyView()) }
-        let cost = viewModel.displayedCost(for: item)
+        let cost = viewModel.displayedCost(for: item, currency: profileViewModel.profile.currency)
         
         return AnyView(
             HStack(spacing: 12) {
@@ -94,10 +101,12 @@ struct ItemListView: View {
         )
     }
     
+    // MARK: - Sorting & actions
+    
     private var sortedItems: [Item] {
         guard let viewModel else { return items }
         return items.sorted {
-            viewModel.displayedCost(for: $0).value < viewModel.displayedCost(for: $1).value
+            viewModel.displayedCost(for: $0, currency: profileViewModel.profile.currency).value < viewModel.displayedCost(for: $1, currency: profileViewModel.profile.currency).value
         }
     }
     
